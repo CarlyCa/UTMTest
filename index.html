@@ -1,3 +1,7 @@
+=<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Embedded Formstack with Referrer Tracking</title>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     function getQueryParam(param) {
@@ -26,7 +30,7 @@ document.addEventListener("DOMContentLoaded", function () {
             localStorage.setItem("original_referrer", referrerDomain); // Store referrer
             return referrerDomain; 
         } catch (error) {
-            console.error("Referrer Error:", error);
+            console.error("🚨 Referrer Error:", error);
             return "unknown"; // If an error occurs
         }
     }
@@ -46,12 +50,25 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log("✅ Updated Formstack URL:", formstackIframe.src);
     }
 
+    // Ensure script runs after full page load
     window.onload = function () {
-        try {
-            updateFormstackIframe();
-        } catch (error) {
-            console.error("🚨 Error updating Formstack iframe:", error);
-        }
+        setTimeout(updateFormstackIframe, 500); // Add slight delay to avoid blank page issue
     };
 });
 </script>
+
+</head>
+<body>
+
+    <h1>Embedded Formstack Form with Referrer Tracking</h1>
+    
+    <!-- Formstack form iframe -->
+    <iframe id="formstack-embed" 
+            src="https://charlottehornets.formstack.com/forms/test_utm" 
+            width="100%" 
+            height="800px" 
+            frameborder="0">
+    </iframe>
+
+</body>
+</html>

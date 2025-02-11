@@ -15,11 +15,6 @@ document.addEventListener("DOMContentLoaded", function () {
             return "facebook.com";  // Assume Facebook if 'fbclid' is found
         }
 
-        let storedReferrer = localStorage.getItem("original_referrer");
-        if (storedReferrer) {
-            return storedReferrer; // Use stored referrer if available
-        }
-
         let referrer = document.referrer;
         if (!referrer) {
             return "direct"; // No referrer means user typed the URL manually
@@ -27,8 +22,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
         try {
             let referrerDomain = new URL(referrer).hostname; // Extract domain
-            localStorage.setItem("original_referrer", referrerDomain); // Store referrer
-            return referrerDomain; 
+
+            // Check if localStorage already has a referrer
+            let storedReferrer = localStorage.getItem("original_referrer");
+
+            // If a new referrer is detected, update storage
+            if (!storedReferrer || storedReferrer !== referrerDomain) {
+                localStorage.setItem("original_referrer", referrerDomain);
+                return referrerDomain;
+            }
+
+            return storedReferrer; // Return stored referrer if unchanged
         } catch (error) {
             console.error("🚨 Referrer Error:", error);
             return "unknown"; // If an error occurs
@@ -52,10 +56,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Ensure script runs after full page load
     window.onload = function () {
-        setTimeout(updateFormstackIframe, 500); // Add slight delay to avoid blank page issue
+        setTimeout(updateFormstackIframe, 500); // Slight delay to prevent blank page issue
     };
 });
 </script>
+
 
 </head>
 <body>

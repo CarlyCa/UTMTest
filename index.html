@@ -2,64 +2,80 @@
 <html lang="en">
 <head>
     <title>Embedded Formstack with Referrer Tracking</title>
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    function getQueryParam(param) {
-        let urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get(param);
-    }
-
-    function getReferrerSource() {
-        // Check for 'fbclid' in URL (Messenger, Facebook, Instagram)
-        if (getQueryParam("fbclid")) {
-            return "facebook.com";  // Assume Facebook if 'fbclid' is found
-        }
-
-        let referrer = document.referrer;
-        if (!referrer) {
-            return "direct"; // No referrer means user typed the URL manually
-        }
-
-        try {
-            let referrerDomain = new URL(referrer).hostname; // Extract domain
-
-            // Check if localStorage already has a referrer
-            let storedReferrer = localStorage.getItem("original_referrer");
-
-            // If a new referrer is detected, update storage
-            if (!storedReferrer || storedReferrer !== referrerDomain) {
-                localStorage.setItem("original_referrer", referrerDomain);
-                return referrerDomain;
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            function getQueryParam(param) {
+                let urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(param);
             }
-
-            return storedReferrer; // Return stored referrer if unchanged
-        } catch (error) {
-            console.error("🚨 Referrer Error:", error);
-            return "unknown"; // If an error occurs
-        }
-    }
-
-    function updateFormstackIframe() {
-        let formstackIframe = document.getElementById("formstack-embed");
-        if (!formstackIframe) {
-            console.error("🚨 Formstack iframe not found!");
-            return;
-        }
-
-        let referrerSource = getReferrerSource();
-        let formUrl = "https://charlottehornets.formstack.com/forms/test_utm";
-        let queryParams = `?referrer_url=${encodeURIComponent(referrerSource)}`;
-        formstackIframe.src = formUrl + queryParams;
         
-        console.log("✅ Updated Formstack URL:", formstackIframe.src);
-    }
-
-    // Ensure script runs after full page load
-    window.onload = function () {
-        setTimeout(updateFormstackIframe, 500); // Slight delay to prevent blank page issue
-    };
-});
-</script>
+            function getReferrerSource() {
+                // 1️⃣ Detect Facebook, Messenger, Instagram
+                if (getQueryParam("fbclid")) {
+                    return "facebook.com";  
+                }
+        
+                let referrer = document.referrer;
+        
+                // 2️⃣ Detect email providers
+                const emailDomains = [
+                    "mail.google.com", "outlook.live.com", "yahoo.com", "icloud.com",
+                    "aol.com", "zoho.com", "mail.proton.me", "fastmail.com",
+                    "yandex.com", "gmx.com", "mail.com"
+                ];
+        
+                if (referrer) {
+                    let referrerDomain = new URL(referrer).hostname;
+        
+                    if (emailDomains.some(domain => referrerDomain.includes(domain))) {
+                        return "email";  // Label as 'email'
+                    }
+        
+                    // 3️⃣ Detect search engines
+                    const searchEngines = [
+                        "google.com", "bing.com", "duckduckgo.com", "yahoo.com",
+                        "baidu.com", "yandex.ru", "ecosia.org"
+                    ];
+        
+                    if (searchEngines.some(engine => referrerDomain.includes(engine))) {
+                        return "search";  // Label as 'search'
+                    }
+        
+                    // 4️⃣ Store and update referrer if new
+                    let storedReferrer = localStorage.getItem("original_referrer");
+                    if (!storedReferrer || storedReferrer !== referrerDomain) {
+                        localStorage.setItem("original_referrer", referrerDomain);
+                        return referrerDomain;
+                    }
+        
+                    return storedReferrer;
+                }
+        
+                // 5️⃣ Default to direct traffic if no referrer is found
+                return "direct";
+            }
+        
+            function updateFormstackIframe() {
+                let formstackIframe = document.getElementById("formstack-embed");
+                if (!formstackIframe) {
+                    console.error("🚨 Formstack iframe not found!");
+                    return;
+                }
+        
+                let referrerSource = getReferrerSource();
+                let formUrl = "https://charlottehornets.formstack.com/forms/test_utm";
+                let queryParams = `?referrer_url=${encodeURIComponent(referrerSource)}`;
+                formstackIframe.src = formUrl + queryParams;
+                
+                console.log("✅ Updated Formstack URL:", formstackIframe.src);
+            }
+        
+            // Ensure script runs after full page load
+            window.onload = function () {
+                setTimeout(updateFormstackIframe, 500); // Small delay to prevent blank page issue
+            };
+        });
+        </script>
 
 
 </head>

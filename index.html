@@ -1,87 +1,112 @@
-<!DOCTYPE html>
+=<!DOCTYPE html>
 <html lang="en">
 <head>
     <title>Embedded Formstack with Referrer Tracking</title>
+
     <script>
-document.addEventListener("DOMContentLoaded", function () {
-    function getQueryParam(param) {
-        let urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get(param);
-    }
-
-    function getReferrerSource() {
-        // 1️⃣ Detect Facebook, Messenger, Instagram via fbclid
-        if (getQueryParam("fbclid")) {
-            return "facebook.com";  
-        }
-
-        let referrer = document.referrer;
-
-        // 2️⃣ Detect Email Clicks
-        const emailDomains = [
-            "mail.google.com", "outlook.live.com", "yahoo.com", "icloud.com",
-            "aol.com", "zoho.com", "mail.proton.me", "fastmail.com",
-            "yandex.com", "gmx.com", "mail.com"
-        ];
-
-        if (referrer) {
-            let referrerDomain = new URL(referrer).hostname;
-
-            // Check for email services
-            if (emailDomains.some(domain => referrerDomain.includes(domain))) {
-                return "email";
+        document.addEventListener("DOMContentLoaded", function () {
+            function getQueryParam(param) {
+                let urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(param);
             }
-
-            // 3️⃣ Detect Search Engines
-            const searchEngines = [
-                "google.com", "bing.com", "duckduckgo.com", "yahoo.com",
-                "baidu.com", "yandex.ru", "ecosia.org"
-            ];
-            if (searchEngines.some(engine => referrerDomain.includes(engine))) {
-                return "search";
-            }
-
-            // 4️⃣ If the referrer is NEW, update storage
-            let storedReferrer = localStorage.getItem("original_referrer");
-            if (!storedReferrer || storedReferrer !== referrerDomain) {
-                localStorage.setItem("original_referrer", referrerDomain);
-                return referrerDomain;
-            }
-
-            return storedReferrer; // Return previous referrer if unchanged
-        }
-
-        // 5️⃣ If no referrer, assume direct visit
-        return "direct";
-    }
-
-    function updateFormstackIframe() {
-        let formstackIframe = document.getElementById("formstack-embed");
-        if (!formstackIframe) {
-            console.error("🚨 Formstack iframe not found!");
-            return;
-        }
-
-        let referrerSource = getReferrerSource();
-
-        // 6️⃣ FORCE REFRESH referrer storage if new visit
-        sessionStorage.setItem("current_referrer", referrerSource);
-
-        let formUrl = "https://charlottehornets.formstack.com/forms/test_utm";
-        let queryParams = `?referrer_url=${encodeURIComponent(referrerSource)}`;
-        formstackIframe.src = formUrl + queryParams;
         
-        console.log("✅ Updated Formstack URL:", formstackIframe.src);
-    }
-
-    // Ensure script runs after full page load
-    window.onload = function () {
-        setTimeout(updateFormstackIframe, 500); // Slight delay to prevent blank page issue
-    };
-});
-</script>
-
-
+            function getReferrerSource() {
+                let referrer = document.referrer;
+                let storedReferrer = localStorage.getItem("original_referrer");
+        
+                // 1️⃣ Detect Facebook, Messenger, Instagram via fbclid
+                if (getQueryParam("fbclid")) {
+                    console.log("Detected Facebook Click: fbclid is present");
+                    localStorage.setItem("original_referrer", "facebook.com");
+                    return "facebook.com";
+                }
+        
+                // 2️⃣ Handle Facebook Redirects (l.facebook.com) - Ignore it and use stored referrer
+                if (referrer.includes("l.facebook.com") || referrer.includes("lm.facebook.com")) {
+                    console.log("Ignoring Facebook Redirect (l.facebook.com)");
+                    return storedReferrer || "direct";
+                }
+        
+                // 3️⃣ Detect If This Link Was Sent via Email (Special URL Parameter)
+                if (getQueryParam("source") === "email") {
+                    console.log("Detected Email Click via UTM");
+                    localStorage.setItem("original_referrer", "email");
+                    return "email";
+                }
+        
+                // 4️⃣ Detect Email Clicks Using Known Email Domains
+                const emailDomains = [
+                    "mail.google.com", "outlook.live.com", "yahoo.com", "icloud.com",
+                    "aol.com", "zoho.com", "mail.proton.me", "fastmail.com",
+                    "yandex.com", "gmx.com", "mail.com"
+                ];
+                if (referrer) {
+                    let referrerDomain = new URL(referrer).hostname;
+        
+                    // Check for email services
+                    if (emailDomains.some(domain => referrerDomain.includes(domain))) {
+                        console.log("Detected Email Click");
+                        localStorage.setItem("original_referrer", "email");
+                        return "email";
+                    }
+        
+                    // 5️⃣ Detect Search Engines
+                    const searchEngines = [
+                        "google.com", "bing.com", "duckduckgo.com", "yahoo.com",
+                        "baidu.com", "yandex.ru", "ecosia.org"
+                    ];
+                    if (searchEngines.some(engine => referrerDomain.includes(engine))) {
+                        console.log("Detected Search Engine Click");
+                        localStorage.setItem("original_referrer", "search");
+                        return "search";
+                    }
+        
+                    // 6️⃣ Store Original Referrer If New
+                    if (!storedReferrer || storedReferrer !== referrerDomain) {
+                        localStorage.setItem("original_referrer", referrerDomain);
+                    }
+                    return referrerDomain;
+                }
+        
+                // 7️⃣ If no referrer and no UTM, assume direct
+                if (!storedReferrer) {
+                    localStorage.setItem("original_referrer", "direct");
+                }
+        
+                return localStorage.getItem("original_referrer");
+            }
+        
+            function updateFormstackIframe() {
+                let formstackIframe = document.getElementById("formstack-embed");
+                if (!formstackIframe) {
+                    console.error("🚨 Formstack iframe not found!");
+                    return;
+                }
+        
+                // 8️⃣ Get updated referrer from localStorage
+                let referrerSource = getReferrerSource();
+        
+                let formUrl = "https://charlottehornets.formstack.com/forms/test_utm";
+                let queryParams = `?referrer_url=${encodeURIComponent(referrerSource)}`;
+                formstackIframe.src = formUrl + queryParams;
+                
+                console.log("✅ Updated Formstack URL:", formstackIframe.src);
+            }
+        
+            // 9️⃣ Clear Old Referrer if New Visit Detected
+            if (!sessionStorage.getItem("sessionStarted")) {
+                console.log("New session detected, clearing old referrer");
+                localStorage.removeItem("original_referrer"); 
+                sessionStorage.setItem("sessionStarted", "true"); 
+            }
+        
+            // 10️⃣ Run on Page Load
+            window.onload = function () {
+                setTimeout(updateFormstackIframe, 500);
+            };
+        });
+        </script>
+        
 </head>
 <body>
 

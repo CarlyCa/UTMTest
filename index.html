@@ -1,96 +1,57 @@
-=<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Embedded Formstack with Referrer Tracking</title>
-    <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        function getQueryParam(param) {
-            let urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(param);
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function getQueryParam(param) {
+        let urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(param);
+    }
+
+    function getReferrerSource() {
+        // Check for 'fbclid' in URL (Messenger, Facebook, Instagram)
+        if (getQueryParam("fbclid")) {
+            return "facebook.com";  // Assume Facebook if 'fbclid' is found
         }
 
-        function getReferrerSource() {
-            // Check if 'fbclid' exists in the URL (meaning user came from Facebook)
-            if (getQueryParam("fbclid")) {
-                return "facebook.com";  // Assume Facebook if 'fbclid' is found
-            }
-
-            let referrer = document.referrer;
-            if (!referrer) {
-                return "direct"; // No referrer means user typed the URL manually
-            }
-
-            try {
-                let referrerDomain = new URL(referrer).hostname; // Extract domain
-                return referrerDomain; // Example: "google.com", "espn.com"
-            } catch (error) {
-                console.error("Referrer Error:", error);
-                return "unknown"; // If an error occurs
-            }
+        let storedReferrer = localStorage.getItem("original_referrer");
+        if (storedReferrer) {
+            return storedReferrer; // Use stored referrer if available
         }
 
-        function setCookie(name, value, days) {
-            if (!value) return;
-            let expires = "";
-            if (days) {
-                let date = new Date();
-                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-                expires = "; expires=" + date.toUTCString();
-            }
-            document.cookie = name + "=" + value + "; path=/" + expires;
+        let referrer = document.referrer;
+        if (!referrer) {
+            return "direct"; // No referrer means user typed the URL manually
         }
 
-        function getCookie(name) {
-            let nameEQ = name + "=";
-            let cookiesArray = document.cookie.split(';');
-            for (let i = 0; i < cookiesArray.length; i++) {
-                let cookie = cookiesArray[i].trim();
-                if (cookie.indexOf(nameEQ) === 0) return cookie.substring(nameEQ.length);
-            }
-            return null;
+        try {
+            let referrerDomain = new URL(referrer).hostname; // Extract domain
+            localStorage.setItem("original_referrer", referrerDomain); // Store referrer
+            return referrerDomain; 
+        } catch (error) {
+            console.error("Referrer Error:", error);
+            return "unknown"; // If an error occurs
+        }
+    }
+
+    function updateFormstackIframe() {
+        let formstackIframe = document.getElementById("formstack-embed");
+        if (!formstackIframe) {
+            console.error("🚨 Formstack iframe not found!");
+            return;
         }
 
-        function updateFormstackIframe() {
-            let formstackIframe = document.getElementById("formstack-embed");
-            if (!formstackIframe) {
-                console.error("🚨 Formstack iframe not found!");
-                return;
-            }
+        let referrerSource = getReferrerSource();
+        let formUrl = "https://charlottehornets.formstack.com/forms/test_utm";
+        let queryParams = `?referrer_url=${encodeURIComponent(referrerSource)}`;
+        formstackIframe.src = formUrl + queryParams;
+        
+        console.log("✅ Updated Formstack URL:", formstackIframe.src);
+    }
 
-            // Get referrer or use stored cookie
-            let referrerSource = getCookie("referrer_source") || getReferrerSource();
-            setCookie("referrer_source", referrerSource, 30); // Store in cookie for 30 days
-
-            // Build the new Formstack URL with the correct referrer
-            let formUrl = "https://charlottehornets.formstack.com/forms/test_utm";
-            let queryParams = `?referrer_url=${encodeURIComponent(referrerSource)}`;
-            formstackIframe.src = formUrl + queryParams;
-            
-            console.log("✅ Updated Formstack URL:", formstackIframe.src);
+    window.onload = function () {
+        try {
+            updateFormstackIframe();
+        } catch (error) {
+            console.error("🚨 Error updating Formstack iframe:", error);
         }
-
-        // Ensure script runs after full page load
-        window.onload = function () {
-            try {
-                updateFormstackIframe();
-            } catch (error) {
-                console.error("🚨 Error updating Formstack iframe:", error);
-            }
-        };
-    });
-    </script>
-</head>
-<body>
-
-    <h1>Embedded Formstack Form with Referrer Tracking</h1>
-    
-    <!-- Formstack form iframe -->
-    <iframe id="formstack-embed" 
-            src="https://charlottehornets.formstack.com/forms/test_utm" 
-            width="100%" 
-            height="800px" 
-            frameborder="0">
-    </iframe>
-
-</body>
-</html>
+    };
+});
+</script>

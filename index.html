@@ -1,91 +1,104 @@
-=<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Embedded Formstack with Referrer Tracking</title>
+  <meta charset="UTF-8">
+  <title>Embedded Formstack with Referrer Tracking</title>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    function getEmailSourceFromUserAgent() {
+      // Helper: Get a query parameter from the URL
+      function getQueryParam(param) {
+        let params = new URLSearchParams(window.location.search);
+        return params.get(param);
+      }
+
+      // Check for known email client identifiers in the user agent string
+      function getEmailSourceFromUserAgent() {
         let userAgent = navigator.userAgent.toLowerCase();
 
         const emailClients = [
-            "gmail", "outlook", "yahoo", "icloud", "aol", "zoho", "protonmail",
-            "fastmail", "yandex", "gmx", "mail.com"
+          "gmail", "outlook", "yahoo", "icloud", "aol", "zoho", "protonmail",
+          "fastmail", "yandex", "gmx", "mail.com"
         ];
 
-        // Check if any known email client is in the user-agent
+        // Loop through the list of email clients and check if any are in the user agent
         for (let client of emailClients) {
-            if (userAgent.includes(client)) {
-                console.log("✅ Detected Email Click via User-Agent:", client);
-                return "email";
-            }
+          if (userAgent.includes(client)) {
+            console.log("✅ Detected Email Click via User-Agent:", client);
+            return "email";
+          }
         }
-
         return null; // No email client detected
-    }
+      }
 
-    function getReferrerSource() {
+      // Determine the original referrer source
+      function getReferrerSource() {
         let referrer = document.referrer;
         let storedReferrer = localStorage.getItem("original_referrer");
 
-        // 1️⃣ Try detecting email click via User-Agent
+        // 0️⃣ Check for URL parameter (recommended approach)
+        if (getQueryParam("utm_source") && getQueryParam("utm_source").toLowerCase() === "email") {
+          console.log("✅ Detected Email Click via URL parameter");
+          localStorage.setItem("original_referrer", "email");
+          return "email";
+        }
+
+        // 1️⃣ Fallback: Check the user agent for email client signatures
         let emailSource = getEmailSourceFromUserAgent();
         if (emailSource) {
-            localStorage.setItem("original_referrer", "email");
-            return "email";
+          localStorage.setItem("original_referrer", "email");
+          return "email";
         }
 
-        // 2️⃣ Detect Facebook, Messenger, Instagram via fbclid
+        // 2️⃣ Detect Facebook, Messenger, or Instagram clicks via fbclid
         if (getQueryParam("fbclid")) {
-            console.log("✅ Detected Facebook Click");
-            localStorage.setItem("original_referrer", "facebook.com");
-            return "facebook.com";
+          console.log("✅ Detected Facebook Click");
+          localStorage.setItem("original_referrer", "facebook.com");
+          return "facebook.com";
         }
 
-        // 3️⃣ Handle Facebook Redirects (l.facebook.com)
+        // 3️⃣ Handle Facebook redirects (from l.facebook.com or lm.facebook.com)
         if (referrer.includes("l.facebook.com") || referrer.includes("lm.facebook.com")) {
-            console.log("🚨 Ignoring Facebook Redirect (l.facebook.com)");
-            return storedReferrer || "direct";
+          console.log("🚨 Ignoring Facebook Redirect (l.facebook.com)");
+          return storedReferrer || "direct";
         }
 
-        // 4️⃣ Default to stored referrer or direct
+        // 4️⃣ Default: Use the stored referrer or set as direct
         return storedReferrer || "direct";
-    }
+      }
 
-    function updateFormstackIframe() {
+      // Update the Formstack iframe URL with the detected referrer source
+      function updateFormstackIframe() {
         let formstackIframe = document.getElementById("formstack-embed");
         if (!formstackIframe) {
-            console.error("🚨 Formstack iframe not found!");
-            return;
+          console.error("🚨 Formstack iframe not found!");
+          return;
         }
 
         let referrerSource = getReferrerSource();
         let formUrl = "https://charlottehornets.formstack.com/forms/test_utm";
         let queryParams = `?referrer_url=${encodeURIComponent(referrerSource)}`;
         formstackIframe.src = formUrl + queryParams;
-        
+
         console.log("✅ Updated Formstack URL:", formstackIframe.src);
-    }
+      }
 
-    // Run on Page Load
-    window.onload = function () {
+      // Run the update after the page loads
+      window.onload = function () {
         setTimeout(updateFormstackIframe, 500);
-    };
-});
-</script>
-
+      };
+    });
+  </script>
 </head>
 <body>
-
-    <h1>Embedded Formstack Form with Referrer Tracking</h1>
-    
-    <!-- Formstack form iframe -->
-    <iframe id="formstack-embed" 
-            src="https://charlottehornets.formstack.com/forms/test_utm" 
-            width="100%" 
-            height="800px" 
-            frameborder="0">
-    </iframe>
-
+  <h1>Embedded Formstack Form with Referrer Tracking</h1>
+  
+  <!-- Formstack form iframe -->
+  <iframe id="formstack-embed" 
+          src="https://charlottehornets.formstack.com/forms/test_utm" 
+          width="100%" 
+          height="800px" 
+          frameborder="0">
+  </iframe>
 </body>
 </html>

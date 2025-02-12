@@ -8,7 +8,7 @@
 
       // Helper: Get a query parameter from the URL
       function getQueryParam(param) {
-        const params = new URLSearchParams(window.location.search);
+        let params = new URLSearchParams(window.location.search);
         return params.get(param);
       }
 
@@ -21,53 +21,68 @@
         }
       }
 
-      // Determine the referrer for this session.
+      // Determine and store the original referrer/source.
       // Priority:
-      // 1. utm_source query parameter (e.g. for email)
-      // 2. fbclid query parameter (set as "facebook.com")
-      // 3. document.referrer (domain only)
-      // 4. Defaults to "direct"
+      // 1. If the URL has utm_medium equal to email, use that.
+      // 2. If the URL has a utm_source, use that (for other custom sources).
+      // 3. If a URL parameter like fbclid is present, use a friendly name (e.g. facebook.com).
+      // 4. Otherwise, if document.referrer is present, extract its domain.
+      // 5. Fallback to "direct".
       function getReferrerSource() {
-        let currentSource = "";
+        // Use a previously stored value if available
+        let storedReferrer = localStorage.getItem("original_referrer");
+        if (storedReferrer) {
+          return storedReferrer;
+        }
 
-        // 1. If there's a utm_source parameter, use it.
-        const utmSource = getQueryParam("utm_source");
+        // 1. Check for utm_medium being 'email'
+        let utmMedium = getQueryParam("utm_medium");
+        if (utmMedium && utmMedium.toLowerCase() === "email") {
+          localStorage.setItem("original_referrer", "email");
+          console.log("✅ Detected email referral via utm_medium:", utmMedium);
+          return "email";
+        }
+
+        // 2. Check for utm_source (for other custom sources)
+        let utmSource = getQueryParam("utm_source");
         if (utmSource) {
-          currentSource = utmSource;
-          console.log("✅ Detected source via utm_source:", currentSource);
-        }
-        // 2. If there's a fbclid parameter, set as "facebook.com"
-        else if (getQueryParam("fbclid")) {
-          currentSource = "facebook.com";
-          console.log("✅ Detected Facebook click via fbclid");
-        }
-        // 3. Otherwise, use document.referrer (extract domain)
-        else if (document.referrer) {
-          currentSource = extractDomain(document.referrer);
-          console.log("✅ Detected referrer from document.referrer:", currentSource);
-        }
-        // 4. Default to "direct"
-        else {
-          currentSource = "direct";
-          console.log("✅ No referrer detected, defaulting to direct");
+          localStorage.setItem("original_referrer", utmSource);
+          console.log("✅ Detected source via utm_source:", utmSource);
+          return utmSource;
         }
 
-        // Use sessionStorage (not localStorage) so the value resets each session.
-        sessionStorage.setItem("original_referrer", currentSource);
-        return currentSource;
+        // 3. Check if the URL contains a fbclid (Facebook click identifier)
+        if (getQueryParam("fbclid")) {
+          localStorage.setItem("original_referrer", "facebook.com");
+          console.log("✅ Detected Facebook Click via fbclid");
+          return "facebook.com";
+        }
+
+        // 4. Otherwise, if document.referrer exists, use its hostname
+        if (document.referrer) {
+          let refDomain = extractDomain(document.referrer);
+          localStorage.setItem("original_referrer", refDomain);
+          console.log("✅ Detected referrer from document.referrer:", refDomain);
+          return refDomain;
+        }
+
+        // 5. Default if no other data is available
+        localStorage.setItem("original_referrer", "direct");
+        console.log("✅ No referrer detected, defaulting to direct");
+        return "direct";
       }
 
-      // Update the Formstack iframe URL with the determined referrer source.
+      // Update the Formstack iframe URL with the determined referrer source
       function updateFormstackIframe() {
-        const formstackIframe = document.getElementById("formstack-embed");
+        let formstackIframe = document.getElementById("formstack-embed");
         if (!formstackIframe) {
           console.error("🚨 Formstack iframe not found!");
           return;
         }
 
-        const referrerSource = getReferrerSource();
-        const formUrl = "https://charlottehornets.formstack.com/forms/test_utm";
-        const queryParams = `?referrer_url=${encodeURIComponent(referrerSource)}`;
+        let referrerSource = getReferrerSource();
+        let formUrl = "https://charlottehornets.formstack.com/forms/test_utm";
+        let queryParams = `?referrer_url=${encodeURIComponent(referrerSource)}`;
         formstackIframe.src = formUrl + queryParams;
 
         console.log("✅ Updated Formstack URL:", formstackIframe.src);
